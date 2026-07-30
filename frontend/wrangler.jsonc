@@ -1,0 +1,9 @@
+{
+  // Must match the Worker name in the Cloudflare dashboard (Settings → General).
+  "name": "gloss",
+  "compatibility_date": "2026-07-28",
+  "assets": {
+    "directory": "./out"
+  },
+  "workers_dev": true
+}
