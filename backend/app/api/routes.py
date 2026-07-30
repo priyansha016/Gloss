@@ -383,7 +383,7 @@ async def _load_showcase_videos(db: AsyncSession) -> list[Video]:
                 select(Video)
                 .where(Video.status == VideoStatus.ready)
                 .order_by(Video.processed_at.desc().nullslast(), Video.created_at.desc())
-                .limit(6)
+                .limit(4)
             )
         ).scalars().all()
     )

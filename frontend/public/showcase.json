@@ -21,24 +21,10 @@
     "duration_s": 733
   },
   {
-    "id": "60980fd0-04e1-495c-acea-04cfb8c96475",
-    "youtube_id": "k_kyepATqB8",
-    "title": "Shor's Algorithm for Quantum Computing - Computerphile",
-    "channel": "Computerphile",
-    "duration_s": 2338
-  },
-  {
     "id": "227c6e43-7134-4d61-91fe-1f360897534e",
     "youtube_id": "aircAruvnKk",
     "title": "But what is a neural network? | Deep learning chapter 1",
     "channel": "3Blue1Brown",
     "duration_s": 1120
-  },
-  {
-    "id": "17e42fbe-04e5-4e7c-bca7-36661674bcb3",
-    "youtube_id": "zfiSAzpy9NM",
-    "title": "Simple explanation of convolutional neural network | Deep Learning Tutorial 23 (Tensorflow & Python)",
-    "channel": "codebasics",
-    "duration_s": 1434
   }
 ]
