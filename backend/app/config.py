@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # Per-IP rate limits (fixed 1-hour window). Protects the free LLM quota on a public
     # deploy. Set RATE_LIMIT_ENABLED=false for local dev.
     rate_limit_enabled: bool = True
-    rate_limit_submit_per_hour: int = 15
+    rate_limit_submit_per_hour: int = 3
     rate_limit_ask_per_hour: int = 40
     rate_limit_practice_per_hour: int = 20
     # Bring-your-own-key. When true, endpoints that spend LLM tokens require an
