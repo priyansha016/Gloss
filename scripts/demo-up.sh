@@ -38,6 +38,20 @@ write_config() {
   log "Wrote $CONFIG_FILE"
 }
 
+sync_config_to_github() {
+  if git diff --quiet "$CONFIG_FILE" 2>/dev/null; then
+    return 0
+  fi
+  log "Tunnel URL changed — pushing to GitHub (Cloudflare redeploys in ~2 min)…"
+  git add "$CONFIG_FILE"
+  git commit -m "Update tunnel URL" || return 1
+  if git push origin main; then
+    log "Pushed. Hard-refresh gloss.priyansha016.workers.dev in ~2 min."
+  else
+    warn "Push failed. Run: git add $CONFIG_FILE && git commit -m 'Update tunnel URL' && git push"
+  fi
+}
+
 TUNNEL_PID=""
 start_tunnel() {
   : >"$TUNNEL_LOG"
@@ -49,7 +63,7 @@ start_tunnel() {
     if [ -n "$url" ]; then
       printf '\n\033[32m[demo] Public API: %s\033[0m\n' "$url"
       write_config "$url"
-      printf '\033[33m[demo] git add %s && git commit -m "Update tunnel URL" && git push\033[0m\n\n' "$CONFIG_FILE"
+      sync_config_to_github || true
       return 0
     fi
     sleep 1
@@ -71,7 +85,7 @@ log "Watching tunnel. Keep this terminal open."
 while true; do
   sleep 30
   if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
-    warn "Tunnel died — restarting (URL will change; push config.json again)."
+    warn "Tunnel died — restarting (URL will change; auto-pushing config.json)."
     start_tunnel
   fi
 done
