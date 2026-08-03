@@ -11,15 +11,11 @@ function isDeployedSite(): boolean {
   return window.location.hostname.endsWith(".workers.dev");
 }
 
-/** API base URL. On workers.dev the Worker proxies /api — same origin, no config.json. */
+/** API base URL. Production reads config.json (tunnel URL); Worker proxy is optional fallback. */
 export async function getApiUrl(): Promise<string> {
   if (resolvedApiUrl) return resolvedApiUrl;
   if (!apiUrlPromise) {
     apiUrlPromise = (async () => {
-      if (typeof window !== "undefined" && isDeployedSite()) {
-        resolvedApiUrl = window.location.origin.replace(/\/$/, "");
-        return resolvedApiUrl;
-      }
       if (typeof window !== "undefined") {
         try {
           const res = await fetch("/config.json", { cache: "no-store" });
@@ -31,7 +27,11 @@ export async function getApiUrl(): Promise<string> {
             }
           }
         } catch {
-          /* local fallback */
+          /* try fallbacks below */
+        }
+        if (isDeployedSite()) {
+          resolvedApiUrl = window.location.origin.replace(/\/$/, "");
+          return resolvedApiUrl;
         }
       }
       resolvedApiUrl = DEFAULT_API_URL.replace(/\/$/, "");

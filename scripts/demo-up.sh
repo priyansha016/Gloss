@@ -39,25 +39,33 @@ write_config() {
 
 LAST_BACKEND_URL_FILE="$LOG_DIR/last-backend-url"
 
+sync_config_to_github() {
+  if git diff --quiet "$CONFIG_FILE" 2>/dev/null; then
+    return 0
+  fi
+  log "Pushing config.json to GitHub (Cloudflare redeploys in ~2 min)…"
+  git add "$CONFIG_FILE"
+  git commit -m "Update tunnel URL" || return 1
+  if git push origin main; then
+    log "Pushed. Hard-refresh gloss.priyansha016.workers.dev in ~2 min."
+  else
+    warn "Push failed. Run: git add $CONFIG_FILE && git commit -m 'Update tunnel URL' && git push"
+  fi
+}
+
 sync_backend_secret() {
   local url="$1"
   if [ -f "$LAST_BACKEND_URL_FILE" ] && [ "$(cat "$LAST_BACKEND_URL_FILE")" = "$url" ]; then
     return 0
   fi
-  write_config "$url"
+  printf '%s' "$url" >"$LAST_BACKEND_URL_FILE"
   if [ ! -d frontend/node_modules ]; then
-    warn "Run: cd frontend && npm ci"
-    return 1
-  fi
-  log "Updating Cloudflare BACKEND_URL secret (site fixes in ~30s, no redeploy)…"
-  if printf '%s' "$url" | (cd frontend && npx wrangler secret put BACKEND_URL 2>/dev/null); then
-    printf '%s' "$url" >"$LAST_BACKEND_URL_FILE"
-    log "BACKEND_URL set. Hard-refresh gloss.priyansha016.workers.dev"
     return 0
   fi
-  warn "Could not set BACKEND_URL automatically."
-  warn "Run: cd frontend && npx wrangler secret put BACKEND_URL"
-  warn "Paste: $url"
+  log "Optional: updating Cloudflare BACKEND_URL secret…"
+  if printf '%s' "$url" | (cd frontend && npx wrangler secret put BACKEND_URL 2>/dev/null); then
+    log "BACKEND_URL secret set."
+  fi
 }
 
 TUNNEL_PID=""
@@ -70,6 +78,8 @@ start_tunnel() {
     url=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$TUNNEL_LOG" | head -1)
     if [ -n "$url" ]; then
       printf '\n\033[32m[demo] Public API: %s\033[0m\n' "$url"
+      write_config "$url"
+      sync_config_to_github || true
       sync_backend_secret "$url" || true
       return 0
     fi
