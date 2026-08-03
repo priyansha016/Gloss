@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Start backend + cloudflared quick tunnel. Updates frontend/public/config.json
-# with the new tunnel URL so the live site can reach your Mac API.
+# Start backend + cloudflared quick tunnel for the Gloss demo.
 #
 #   ./scripts/demo-up.sh
 #
-# After it prints the URL, commit and push config.json if it changed:
-#   git add frontend/public/config.json && git commit -m "Update tunnel URL" && git push
+# Updates the Cloudflare Worker secret BACKEND_URL when the tunnel URL changes
+# (no git push or frontend redeploy). One-time setup: cd frontend && npm run build
+# && npx wrangler deploy  (after pulling this worker-proxy change).
 
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -35,21 +35,29 @@ curl -fsS "$API_URL/health" >/dev/null 2>&1 || { warn "API not healthy"; exit 1;
 write_config() {
   local url="$1"
   printf '{\n  "apiUrl": "%s"\n}\n' "$url" >"$CONFIG_FILE"
-  log "Wrote $CONFIG_FILE"
 }
 
-sync_config_to_github() {
-  if git diff --quiet "$CONFIG_FILE" 2>/dev/null; then
+LAST_BACKEND_URL_FILE="$LOG_DIR/last-backend-url"
+
+sync_backend_secret() {
+  local url="$1"
+  if [ -f "$LAST_BACKEND_URL_FILE" ] && [ "$(cat "$LAST_BACKEND_URL_FILE")" = "$url" ]; then
     return 0
   fi
-  log "Tunnel URL changed — pushing to GitHub (Cloudflare redeploys in ~2 min)…"
-  git add "$CONFIG_FILE"
-  git commit -m "Update tunnel URL" || return 1
-  if git push origin main; then
-    log "Pushed. Hard-refresh gloss.priyansha016.workers.dev in ~2 min."
-  else
-    warn "Push failed. Run: git add $CONFIG_FILE && git commit -m 'Update tunnel URL' && git push"
+  write_config "$url"
+  if [ ! -d frontend/node_modules ]; then
+    warn "Run: cd frontend && npm ci"
+    return 1
   fi
+  log "Updating Cloudflare BACKEND_URL secret (site fixes in ~30s, no redeploy)…"
+  if printf '%s' "$url" | (cd frontend && npx wrangler secret put BACKEND_URL 2>/dev/null); then
+    printf '%s' "$url" >"$LAST_BACKEND_URL_FILE"
+    log "BACKEND_URL set. Hard-refresh gloss.priyansha016.workers.dev"
+    return 0
+  fi
+  warn "Could not set BACKEND_URL automatically."
+  warn "Run: cd frontend && npx wrangler secret put BACKEND_URL"
+  warn "Paste: $url"
 }
 
 TUNNEL_PID=""
@@ -62,8 +70,7 @@ start_tunnel() {
     url=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$TUNNEL_LOG" | head -1)
     if [ -n "$url" ]; then
       printf '\n\033[32m[demo] Public API: %s\033[0m\n' "$url"
-      write_config "$url"
-      sync_config_to_github || true
+      sync_backend_secret "$url" || true
       return 0
     fi
     sleep 1
@@ -85,7 +92,7 @@ log "Watching tunnel. Keep this terminal open."
 while true; do
   sleep 30
   if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
-    warn "Tunnel died — restarting (URL will change; auto-pushing config.json)."
+    warn "Tunnel died — restarting (BACKEND_URL will update automatically)."
     start_tunnel
   fi
 done

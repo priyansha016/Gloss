@@ -1,9 +1,11 @@
 {
   // Must match the Worker name in the Cloudflare dashboard (Settings → General).
   "name": "gloss",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-07-28",
   "assets": {
-    "directory": "./out"
+    "directory": "./out",
+    "binding": "ASSETS"
   },
   "workers_dev": true
 }

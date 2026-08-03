@@ -1,0 +1,2 @@
+# Local wrangler dev only. Production uses the BACKEND_URL Worker secret.
+BACKEND_URL=http://localhost:8000

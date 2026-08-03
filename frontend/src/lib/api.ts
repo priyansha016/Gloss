@@ -6,11 +6,20 @@ const DEFAULT_API_URL =
 let resolvedApiUrl: string | null = null;
 let apiUrlPromise: Promise<string> | null = null;
 
-/** Resolve API base URL: runtime config.json overrides stale build-time env. */
+function isDeployedSite(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.hostname.endsWith(".workers.dev");
+}
+
+/** API base URL. On workers.dev the Worker proxies /api — same origin, no config.json. */
 export async function getApiUrl(): Promise<string> {
   if (resolvedApiUrl) return resolvedApiUrl;
   if (!apiUrlPromise) {
     apiUrlPromise = (async () => {
+      if (typeof window !== "undefined" && isDeployedSite()) {
+        resolvedApiUrl = window.location.origin.replace(/\/$/, "");
+        return resolvedApiUrl;
+      }
       if (typeof window !== "undefined") {
         try {
           const res = await fetch("/config.json", { cache: "no-store" });
@@ -22,7 +31,7 @@ export async function getApiUrl(): Promise<string> {
             }
           }
         } catch {
-          /* fall through to build-time default */
+          /* local fallback */
         }
       }
       resolvedApiUrl = DEFAULT_API_URL.replace(/\/$/, "");
